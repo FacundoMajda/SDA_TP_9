@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Detector de Toxicidad</title>
+    <!-- Carga de tf.js y modelo toxicidad -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/toxicity@1.2.2"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2rem;
+        background: #f9f9f9;
+        color: #333;
+      }
+      h1 {
+        margin-bottom: 1rem;
+      }
+      .input-group {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+      }
+      input {
+        padding: 0.5rem;
+        font-size: 1rem;
+        width: 300px;
+      }
+      button {
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      #status {
+        margin-bottom: 1rem;
+        font-style: italic;
+      }
+      #resultado ul {
+        list-style: none;
+        padding: 0;
+      }
+      #resultado li {
+        margin: 0.3rem 0;
+      }
+      .positivo {
+        color: green;
+      }
+      .negativo {
+        color: red;
+      }
+      .conclusion {
+        margin-top: 1rem;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🛡️ Detector de Toxicidad</h1>
+    <div class="input-group">
+      <input id="inputTexto" type="text" placeholder="Escribe tu texto aquí…" />
+      <button id="btnAnalizar" disabled>Analizar</button>
+    </div>
+    <div id="status">Cargando modelo…</div>
+    <div id="resultado"></div>
+
+    <script>
+      const etiquetasTraducidas = {
+        identity_attack: "Ataque a identidad",
+        insult: "Insulto",
+        obscene: "Lenguaje obsceno",
+        severe_toxicity: "Toxicidad severa",
+        sexual_explicit: "Contenido sexual explícito",
+        threat: "Amenaza",
+        toxicity: "Toxicidad general",
+      };
+
+      const threshold = 0.85;
+      let model;
+      const btn = document.getElementById("btnAnalizar");
+      const statusDiv = document.getElementById("status");
+      const resultadoDiv = document.getElementById("resultado");
+
+      (async () => {
+        model = await toxicity.load(threshold);
+        statusDiv.innerText = "Modelo listo ✅";
+        btn.disabled = false;
+      })();
+
+      btn.addEventListener("click", async () => {
+        const texto = document.getElementById("inputTexto").value.trim();
+        if (!texto) return;
+
+        statusDiv.innerText = "Analizando…";
+        resultadoDiv.innerHTML = "";
+
+        const preds = await model.classify([texto]);
+        let esToxico = false;
+        let html = "<ul>";
+
+        preds.forEach((p) => {
+          const label = etiquetasTraducidas[p.label];
+          const match = p.results[0].match;
+          const prob = (p.results[0].probabilities[1] * 100).toFixed(1);
+          if (match) esToxico = true;
+          html += `<li class="${match ? "negativo" : "positivo"}">
+                   ${match ? "✖" : "✔"} <strong>${label}:</strong> ${
+            match ? "Sí" : "No"
+          } (${prob}%)
+                 </li>`;
+        });
+
+        html += "</ul>";
+        html += `<p class="conclusion">
+                 ${
+                   esToxico
+                     ? "⚠️ Conclusión: El texto contiene elementos potencialmente tóxicos."
+                     : "✅ Conclusión: El texto no muestra toxicidad."
+                 }
+               </p>`;
+
+        resultadoDiv.innerHTML = html;
+        statusDiv.innerText = "Análisis completo";
+      });
+    </script>
+  </body>
+</html>
